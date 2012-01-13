@@ -42,8 +42,23 @@ PKG_URL=`echo $PKG_URL | sed 's/http:\/\///g'`
 
 # Yes, we only support git as SCM
 PKG_SCM="git"
-echo "Enter your dependencies as a comma separated list. Press ENTER when finished:"
+if test -n "$PKG_EXTRA_DEPENDENCIES"; then
+    echo "Enter your dependencies as a comma separated list."
+    echo "${PKG_EXTRA_DEPENDENCIES} have already been added for the bundle dependencies"
+    echo "Press ENTER when finished:"
+else
+    echo "Enter your dependencies as a comma separated list."
+    echo "Press ENTER when finished:"
+fi
 read PKG_DEPENDENCIES
+
+if test -n "$PKG_EXTRA_DEPENDENCIES"; then
+    if test -n "$PKG_DEPENDENCIES"; then
+        PKG_DEPENDENCIES="$PKG_DEPENDENCIES,$PKG_EXTRA_DEPENDENCIES"
+    else
+        PKG_DEPENDENCIES="$PKG_EXTRA_DEPENDENCIES"
+    fi
+fi
 
 # But if there is svn or mercurial support ever
 # we can already prompt the user ;)

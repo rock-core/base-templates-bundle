@@ -17,7 +17,7 @@ PACKAGE_DIR_NAME=`basename $DIR`
 # If no arguments are given or help is requested
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]
 	then echo "usage: $0 [<package-name>]"
-	echo "This script prepares a cmake-template for usage. It requests required"
+	echo "This script prepares a bundle-template for usage. It requests required"
 	echo "information from the user when needed."
 	echo "Note, that if no package name is given, the name of the parent directory"
 	echo " of this script (${PACKAGE_DIR_NAME}) applies."
@@ -31,7 +31,7 @@ else
 	PACKAGE_SHORT_NAME=$PACKAGE_DIR_NAME
 fi
 
-echo "Do you want to start the configuration of the cmake project: ${PACKAGE_SHORT_NAME}"
+echo "Do you want to start the configuration of the bundle package: ${PACKAGE_SHORT_NAME}"
 
 # Check and interprete answer of "Proceed [y|n]"
 ANSWER=""
@@ -50,26 +50,38 @@ fi
 # Change into the operation directory
 cd $DIR
 
-# Select package type
-PACKAGE_TYPE="CMAKE"
+# removing git references to prepare for new check in
+rm -rf .git
 
-# CMAKE-TEMPLATE-ADAPTION
-if [ $PACKAGE_TYPE = "CMAKE" ]; then
-	# removing git references to prepare for new check in
-	rm -rf .git
+# replace dummyproject with projectname in the files
+find . -type f ! -name 'config.sh' -exec sed -i 's#dummyproject#'$PACKAGE_SHORT_NAME'#' {} \;
+# also rename the relevant files
+find . -type f -name '*dummyproject*' | while read path; do
+    newpath=`echo $path | sed "s#dummyproject#$PACKAGE_SHORT_NAME#"`
+    mv $path $newpath
+done
 
-	# replace dummyproject with projectname in the files
-        find . -type f ! -name 'config.sh' -exec sed -i 's#dummyproject#'$PACKAGE_SHORT_NAME'#' {} \;
-        # also rename the relevant files
-        find . -type f -name '*dummyproject*' | while read path; do
-            newpath=`echo $path | sed "s#dummyproject#$PACKAGE_SHORT_NAME#"`
-            mv $path $newpath
-        done
-	
-	# Configure the manifest
-	sh config_manifest.sh
-fi
-# end of CMAKE-TEMPLATE-ADAPTION
+echo "Comma-separated list of other bundles this one should depend on"
+echo "Press ENTER when finished"
+read BUNDLE_DEPS
+BUNDLE_DEPS=`echo $BUNDLE_DEPS | sed "s/,/ /g"`
+for bundle_name in $BUNDLE_DEPS; do
+    bundle_path=`rock-bundle-find $bundle_name`
+    if test "x$?" != "x0"; then
+        echo "bundle $bundle_name does not exist"
+        exit 1
+    fi
+    bundle_package_name=`autoproj query --search-all autobuild.srcdir="$bundle_path"`
+    if test -z "$PKG_EXTRA_DEPENDENCIES"; then
+        PKG_EXTRA_DEPENDENCIES="$bundle_package_name"
+    else
+        PKG_EXTRA_DEPENDENCIES="$PKG_EXTRA_DEPENDENCIES,$bundle_package_name"
+    fi
+done
+export PKG_EXTRA_DEPENDENCIES
+
+# Configure the manifest
+sh config_manifest.sh
 
 #delete setup scripts
 rm config_manifest.sh
